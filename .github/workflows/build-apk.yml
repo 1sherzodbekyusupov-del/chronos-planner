@@ -1,0 +1,53 @@
+name: Build Chronos Planner APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "chronos-planner.zip"
+      - ".github/workflows/build-apk.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.3.1"
+
+      - name: Extract project
+        run: |
+          unzip -q chronos-planner.zip -d extracted
+          find extracted -type f -name settings.gradle.kts
+
+      - name: Build debug APK
+        run: |
+          PROJECT_DIR=$(dirname "$(find extracted -type f -name settings.gradle.kts | head -n 1)")
+          if [ -z "$PROJECT_DIR" ] || [ ! -f "$PROJECT_DIR/build.gradle.kts" ]; then
+            echo "Android project root not found"
+            exit 1
+          fi
+          cd "$PROJECT_DIR"
+          gradle assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Chronos-Planner-debug-APK
+          path: extracted/**/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 7
